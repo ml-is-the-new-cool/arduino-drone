@@ -1,7 +1,10 @@
 /**
- * (1, 3) red propellers
- * (2, 4) black propellers
- * 
+ * |Motor| Pin | Rotation | ESC |
+ * -----------------------------|
+ * |  1  |  5  |    CCW   |  1  |
+ * |  2  |  6  |    CW    | -1  |
+ * |  3  |  7  |    CCW   |  1  |
+ * |  4  |  8  |    CW    | -1  |
  */
 
 #include <SoftwareSerial.h>
@@ -48,9 +51,21 @@ void setup() {
 
 void loop() {
     //sendWithStartEndMarkers();
-    recvWithStartEndMarkersOnSerial();
+    //recvWithStartEndMarkersOnSerial();
     recvWithStartEndMarkers();
     showNewData();
+
+/*
+    int pulses[4];
+    for(int power = 1000; power < 1400; power += 100) {
+      for(int i = 0; i < 4; i++) {
+        pulses[i] = power;
+      }
+      Serial.println(power);
+      esc_send_pulse(pulses);
+      delay(2000);
+    }
+*/
 }
 
 // ================================================================================
@@ -72,9 +87,11 @@ void apc_set_configuration() {
   delay(10);
 
 // TODO
+/*
   while (APC.available()) {
     Serial.print(APC.read());
   }
+*/
   Serial.println("");
 // TODO
 
@@ -196,16 +213,7 @@ void recvWithStartEndMarkersOnSerial() {
 
 void showNewData() {
     if (NEW_DATA == true) {
-      
-        if (ESC_CALIBRATED_MIN and ESC_CALIBRATED_MAX) {
-          parseData();
-          APC.write('<');
-          APC.write('V');
-          APC.write('>');
-        }
-
-        else {
-          if (RECEIVED_CHARS[0] == '-') {
+      if (RECEIVED_CHARS[0] == '-') {
             APC.write('<');
             APC.write('m');
             APC.write('>');
@@ -215,7 +223,7 @@ void showNewData() {
             ESC_CALIBRATED_MIN = true;
           }
 
-          if (RECEIVED_CHARS[0] == '+') {
+          else if (RECEIVED_CHARS[0] == '+') {
             APC.write('<');
             APC.write('M');
             APC.write('>');
@@ -224,7 +232,15 @@ void showNewData() {
             esc_setup_max();
             ESC_CALIBRATED_MAX = true;
           }
+
+        else {
+         parseData();
+          APC.write('<');
+          APC.write('V');
+          APC.write('>');
+     
         }
+        
         
         NEW_DATA = false;
     }
@@ -232,24 +248,21 @@ void showNewData() {
 
 void parseData() {
     char * strtokIndx; // this is used by strtok() as an index
+    int pulses[4];
     
     strtokIndx = strtok(RECEIVED_CHARS, ",");      // get the first part - the string
-    int motor_1 = atoi(strtokIndx);
+    pulses[0] = atoi(strtokIndx);
 
     strtokIndx = strtok(NULL, ",");
-    int motor_2 = atoi(strtokIndx);
+    pulses[1] = atoi(strtokIndx);
 
     strtokIndx = strtok(NULL, ",");
-    int motor_3 = atoi(strtokIndx);
+    pulses[2] = atoi(strtokIndx);
 
     strtokIndx = strtok(NULL, ",");
-    int motor_4 = atoi(strtokIndx);
+    pulses[3] = atoi(strtokIndx);
 
-    Serial.println(motor_1);
-    Serial.println(motor_2);
-    Serial.println(motor_3);
-    Serial.println(motor_4);
-    esc_send_pulse(motor_1, motor_2, motor_3, motor_4);
+    esc_send_pulse(pulses);
 }
 
 // ================================================================================

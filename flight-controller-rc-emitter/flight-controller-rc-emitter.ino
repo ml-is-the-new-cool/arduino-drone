@@ -1,8 +1,22 @@
-/**
- * (1, 3) red propellers
- * (2, 4) black propellers
- * 
- */
+/*
+#include <Servo.h>
+
+Servo ESC;     // create servo object to control the ESC
+int potValue;  // value from the analog pin
+
+void setup() {
+  Serial.begin(9600);
+  // Attach the ESC on pin 9
+  ESC.attach(9,1000,2000); // (pin, min pulse width, max pulse width in microseconds) 
+}
+
+
+void loop() {
+  potValue = analogRead(A0);   // reads the value of the potentiometer (value between 0 and 1023)
+  potValue = map(potValue, 0, 1023, 0, 180);   // scale it to use it with the servo library (value between 0 and 180)
+  ESC.write(potValue);    // Send the signal to the ESC
+}
+*/
 
 #include <Servo.h>
 #include <SoftwareSerial.h>
@@ -78,7 +92,6 @@ void apc_get_configuration() {
   APC.println("RD");
   delay(10);
 
- /*
   Serial.println("\t<APC config>");
   Serial.print("\t\t");
   while(APC.available() > 0) {
@@ -86,7 +99,6 @@ void apc_get_configuration() {
     Serial.print(rx_byte);
   }
   Serial.println("");
-  */
   
   while(APC.available() > 0) {
     Serial.print(APC.read());
