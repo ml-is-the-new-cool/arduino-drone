@@ -1,163 +1,83 @@
 /*
-#include <Servo.h>
-
-Servo ESC;     // create servo object to control the ESC
-int potValue;  // value from the analog pin
-
-void setup() {
-  Serial.begin(9600);
-  // Attach the ESC on pin 9
-  ESC.attach(9,1000,2000); // (pin, min pulse width, max pulse width in microseconds) 
-}
-
-
-void loop() {
-  potValue = analogRead(A0);   // reads the value of the potentiometer (value between 0 and 1023)
-  potValue = map(potValue, 0, 1023, 0, 180);   // scale it to use it with the servo library (value between 0 and 180)
-  ESC.write(potValue);    // Send the signal to the ESC
-}
+* Arduino Wireless Communication Tutorial
+*     Example 1 - Transmitter Code
+*                
+* by Dejan Nedelkovski, www.HowToMechatronics.com
+* 
+* Library: TMRh20/RF24, https://github.com/tmrh20/RF24/
+* Documentation : https://tmrh20.github.io/RF24/
+* Examples from official library : https://tmrh20.github.io/RF24/examples.html
+* Tutorial : https://forum.arduino.cc/index.php?topic=421081
+* 
+* pipes (similar as the support used) =/= addresses (similar as a phone number)
+* 
+* ============
+* Data packets
+* ============
+* maximum 32 bytes in a single message
+* 2 modes of operations
+* {a} fixed payload size (default to 32 bytes) using setPayloadSize(x)
+* {b} dynamic payload using enableDynamicPayloads() and checkable with getDynamicPayloadSize()
+* 
+* on transmitter (TX) : if the data that was sent is not correctly received, the TX will
+* consider the transimssion to have failed and will automatically retry the transmission up to
+* 5 times (default, max 15) before giving up.
+* 
+* on receiver (RX) : if radio.available() > 0 then you are sure it will be correct and fully
+* received.
+* 
 */
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
 
-#include <Servo.h>
-#include <SoftwareSerial.h>
+#define PIN_RADIO_CE 9
+#define PIN_RADIO_CSN 10
 
-const int PIN_APC_RX  = 11; // vert
-const int PIN_APC_TX  = 12; // blanc
-const int PIN_APC_SET = 13; // jaune
+const byte address[6] = "00001";
+unsigned long currentTime;
+unsigned long prevTime;
+unsigned long TX_INTERVAL_TIME = 2000;
+RF24 radio(PIN_RADIO_CE, PIN_RADIO_CSN);
 
-SoftwareSerial APC(PIN_APC_RX, PIN_APC_TX);
-
-const byte NUM_CHARS = 32;
-char RECEIVED_CHARS[NUM_CHARS];
-char START_MARKER = '<';
-char END_MARKER = '>';
-boolean NEW_DATA = false;
-
-// ================================================================================
+int data_tx = 0;
 
 void setup() {
-    //Serial.println("<ARDUINO config...");
-    Serial.begin(9600);
-    //Serial.println("<Arduino is ready>");
-    
-    //Serial.println("<APC config>");
-    apc_set_configuration();
-    //apc_get_configuration();
-    //Serial.println("<APC is ready>");
-}
+  /**
+   * Arduino configuration
+   */
+  Serial.begin(9600);
 
-// ================================================================================
+  /**
+   * Radio configuration
+   */
+  radio.begin();
+  radio.setAutoAck(false);
+  radio.setRetries(3, 5); // delay, count
+  radio.setDataRate(RF24_250KBPS);
+  radio.setPALevel(RF24_PA_LOW);
+  radio.openWritingPipe(address);
+  radio.stopListening();
+}
 
 void loop() {
-    sendWithStartEndMarkers();
-    recvWithStartEndMarkers();
-    showNewData();
-}
+  currentTime = millis();
 
-// ================================================================================
-
-void apc_set_configuration() {
-  pinMode(PIN_APC_SET, HIGH);
-  APC.begin(9600);
-
-  // on met le APC en mode configuration
-  digitalWrite(PIN_APC_SET, LOW);
-  delay(10);
-
-  // on configure le APC avec les valeurs par défault, voir fiche constructeur
-  // TODO : à quoi correspond les valeurs
-  //const long apc_frequency = 431000; // 418_000MHz to 455MHz
-  //const int apc_air_rate  = 3;      // (0, 2400bps) (1, 4800) (2, 9600) (3, 19200)
-  //const int apc_jsaispas  = 3;
-  APC.println("WR 433900 3 9 3 0");
-  delay(10);
-
-// TODO
-  while (APC.available()) {
-    Serial.print(APC.read());
+  if (currentTime - prevTime >= TX_INTERVAL_TIME) {
+    tx();
+    prevTime = millis();
   }
-  Serial.println();
-// TODO
-
-  // on remet le APC en mode opérationnel
-  digitalWrite(PIN_APC_SET, HIGH);
-  delay(200);
 }
 
-// ================================================================================
+void tx() {
+  bool isSuccess;
 
-void apc_get_configuration() {
-  digitalWrite(PIN_APC_SET, LOW);
-  delay(10);
-  APC.println("RD");
-  delay(10);
+  isSuccess = radio.write(&data_tx, sizeof(data_tx));
 
-  Serial.println("\t<APC config>");
-  Serial.print("\t\t");
-  while(APC.available() > 0) {
-    char rx_byte = APC.read();
-    Serial.print(rx_byte);
+  if (isSuccess) {
+    Serial.println("success");
   }
-  Serial.println("");
-  
-  while(APC.available() > 0) {
-    Serial.print(APC.read());
-  }
-  Serial.println();
-  
-  digitalWrite(PIN_APC_SET, HIGH);
-  delay(200);
-}
-
-// ================================================================================
-
-void recvWithStartEndMarkers() {
-    static boolean recv_in_progress = false;
-    static byte ndx = 0;
-    char rc;
- 
-    while (APC.available() > 0 && NEW_DATA == false) {
-        rc = APC.read();
-
-        if (recv_in_progress == true) {
-            if (rc != END_MARKER) {
-                RECEIVED_CHARS[ndx] = rc;
-                ndx++;
-                if (ndx >= NUM_CHARS) {
-                    ndx = NUM_CHARS - 1;
-                }
-            }
-            else {
-                RECEIVED_CHARS[ndx] = '\0'; // terminate the string
-                recv_in_progress = false;
-                ndx = 0;
-                NEW_DATA = true;
-            }
-        }
-
-        else if (rc == START_MARKER) {
-            recv_in_progress = true;
-        }
-    }
-}
-
-// ================================================================================
-
-void showNewData() {
-    if (NEW_DATA == true) {
-        Serial.print("Received from drone -> ");
-        Serial.println(RECEIVED_CHARS);
-        NEW_DATA = false;
-    }
-}
-
-// ================================================================================
-
-void sendWithStartEndMarkers() {
-  char rc;
-  while (Serial.available() > 0) {
-    rc = Serial.read();
-    APC.write(rc);
-    //Serial.println(rc);
+  else {
+    Serial.println("Failed");
   }
 }

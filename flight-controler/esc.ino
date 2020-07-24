@@ -4,33 +4,33 @@
 #define MIN_PULSE_LENGTH 1000 // µs
 #define MAX_PULSE_LENGTH 2000 // µs
 #define MOTORS_N 4
-int MOTORS_PIN[MOTORS_N] = {5, 6, 7, 8};
+int MOTORS_PIN[MOTORS_N] = {2, 3, 4, 5};
 Servo MOTORS[MOTORS_N];
 
 // ================================================================================
 
-void esc_setup_attach() {
+void escSetupAttach() {
   for(int i = 0; i < MOTORS_N; i++)
     MOTORS[i].attach(MOTORS_PIN[i], MIN_PULSE_LENGTH, MAX_PULSE_LENGTH);
 }
 
 // ================================================================================
 
-void esc_setup_min() {
+void escSetupMin() {
   for(int i = 0; i < MOTORS_N; i++)
     MOTORS[i].writeMicroseconds(MIN_PULSE_LENGTH);
 }
 
 // ================================================================================
 
-void esc_setup_max() {
+void escSetupMax() {
   for(int i = 0; i < MOTORS_N; i++)
     MOTORS[i].writeMicroseconds(MAX_PULSE_LENGTH);
 }
 
 // ================================================================================
 
-void esc_send_pulse(int *pulses) {
+void escSendPulses(int *pulses) {
   int pulse_constrain = 0;
   
   for(int i = 0; i < MOTORS_N; i++) {
